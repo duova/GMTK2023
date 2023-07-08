@@ -118,12 +118,12 @@ void UDialogueComponent::Continue()
 			PossibleCharacters.Remove(ToAdd);
 		}
 		ShownCharacterGuessOptions.Insert(CurrentCharacterData, FMath::RandRange(0, ShownCharacterGuessOptions.Num()));
-		TArray<FText> ShownCharacterGuessTitles;
-		for (UDialogueCharacterData* Character : ShownCharacterGuessOptions)
+		TArray<FText> ShownCareersOfCharactersForGuessing;
+		for (const UDialogueCharacterData* Character : ShownCharacterGuessOptions)
 		{
-			ShownCharacterGuessTitles.Add(Character->Title);
+			ShownCareersOfCharactersForGuessing.Add(Character->Career);
 		}
-		OnDisplayOptions(ShownCharacterGuessTitles);
+		OnDisplayOptions(ShownCareersOfCharactersForGuessing);
 	}
 	else
 	{
