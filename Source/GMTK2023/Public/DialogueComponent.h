@@ -40,7 +40,10 @@ public:
 	FText StartingText;
 
 	UPROPERTY(EditAnywhere)
-	uint8 NumberOfQuestionsInASet;
+	uint8 NumberOfSpecificQuestionsPerSet;
+
+	UPROPERTY(EditAnywhere)
+	uint8 NumberOfGeneralQuestionsPerSet;
 
 	UPROPERTY(EditAnywhere)
 	uint8 NumberOfQuestionSets;
@@ -112,11 +115,11 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnInterviewEnd();
 
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnOutOfInterviews();
-
 	UFUNCTION(BlueprintGetter)
 	void GetStats(int32& OutNumberOfCorrectGuesses, int32& OutNumberOfInterviewsCompleted, int32& OutNumberOfInterviewsStarted) const;
+
+	UFUNCTION(BlueprintCallable)
+	void Reset();
 	
 	UFUNCTION(BlueprintCallable)
 	void Continue();
@@ -132,7 +135,7 @@ private:
 	void AddRandomQuestionToArrayAndRemove(TArray<uint8>& QuestionIndexArray, TArray<FQuestionTableRow*>& ArrayToAddTo);
 
 	UPROPERTY()
-	TArray<UDialogueCharacterData*> RemainingCharacters;
+	UDialogueCharacterData* LastPlayedCharacter;
 
 	UPROPERTY()
 	UDialogueCharacterData* CurrentCharacterData;
@@ -145,7 +148,7 @@ private:
 	TArray<uint8> RemainingOptimalQuestions;
 	
 	UPROPERTY()
-	TArray<uint8> RemainingNeutralQuestions;
+	TArray<uint8> RemainingGeneralQuestions;
 
 	UPROPERTY()
 	TArray<uint8> RemainingBadQuestions;

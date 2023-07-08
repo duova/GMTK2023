@@ -19,19 +19,20 @@ void UDialogueComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	RemainingCharacters = CharacterData;
+	LastPlayedCharacter = nullptr;
 	NumberOfCorrectGuesses = 0;
 	NumberOfInterviewsCompleted = 0;
 	NumberOfInterviewsStarted = 0;
+	SuspicionMeter = 0;
 }
 
 void UDialogueComponent::StartInterview()
 {
-	RemainingNeutralQuestions.Empty();
+	RemainingGeneralQuestions.Empty();
 	RemainingOptimalQuestions.Empty();
 	RemainingBadQuestions.Empty();
 
-	if (RemainingCharacters.Num() <= 0)
+	if (CharacterData.Num() <= 0)
 	{
 		if (GEngine)
 			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red,
@@ -39,8 +40,13 @@ void UDialogueComponent::StartInterview()
 		return;
 	}
 
-	CurrentCharacterData = RemainingCharacters[FMath::RandRange(0, RemainingCharacters.Num() - 1)];
-	RemainingCharacters.Remove(CurrentCharacterData);
+	TArray<UDialogueCharacterData*> AvailableCharacters = CharacterData;
+	if (LastPlayedCharacter)
+	{
+		AvailableCharacters.Remove(LastPlayedCharacter);
+	}
+	
+	CurrentCharacterData = AvailableCharacters[FMath::RandRange(0, AvailableCharacters.Num() - 1)];
 
 	CurrentQuestionTable.Empty();
 	CurrentCharacterData->QuestionTable->GetAllRows<FQuestionTableRow>(FString(), CurrentQuestionTable);
@@ -49,7 +55,7 @@ void UDialogueComponent::StartInterview()
 	{
 		if (CurrentQuestionTable[i]->Value == 0)
 		{
-			RemainingNeutralQuestions.Add(i);
+			RemainingGeneralQuestions.Add(i);
 		}
 		else if (CurrentQuestionTable[i]->Value > 0)
 		{
@@ -60,8 +66,7 @@ void UDialogueComponent::StartInterview()
 			RemainingBadQuestions.Add(i);
 		}
 	}
-
-	SuspicionMeter = 0;
+	
 	QuestionsDone = 0;
 	NumberOfInterviewsStarted++;
 	SelectedQuestions.Empty();
@@ -78,31 +83,40 @@ void UDialogueComponent::GetStats(int32& OutNumberOfCorrectGuesses, int32& OutNu
 	OutNumberOfInterviewsStarted = NumberOfInterviewsStarted;
 }
 
+void UDialogueComponent::Reset()
+{
+	OnUIClear();
+	OnInterviewEnd();
+	LastPlayedCharacter = nullptr;
+	NumberOfCorrectGuesses = 0;
+	NumberOfInterviewsCompleted = 0;
+	NumberOfInterviewsStarted = 0;
+	SuspicionMeter = 0;
+
+	RemainingGeneralQuestions.Empty();
+	RemainingOptimalQuestions.Empty();
+	RemainingBadQuestions.Empty();
+
+	QuestionsDone = 0;
+	SelectedQuestions.Empty();
+	InterviewState = EInterviewState::None;
+}
+
 void UDialogueComponent::Continue()
 {
 	if (InterviewState == EInterviewState::Bust)
 	{
 		OnInterviewEnd();
-		if (RemainingCharacters.Num() <= 0)
-		{
-			OnOutOfInterviews();
-		}
 		InterviewState = EInterviewState::None;
 	}
 	else if (InterviewState == EInterviewState::End)
 	{
 		OnInterviewEnd();
-		if (RemainingCharacters.Num() <= 0)
-		{
-			OnOutOfInterviews();
-		}
 		InterviewState = EInterviewState::None;
 	}
 	if (!(InterviewState == EInterviewState::Start || InterviewState == EInterviewState::Answer)) return;
-	const uint8 LowestNumberOfRequiredQuestions = FMath::Floor(CurrentCharacterData->NumberOfQuestionsInASet / 3) + 1;
-	if (RemainingNeutralQuestions.Num() < LowestNumberOfRequiredQuestions ||
-		RemainingOptimalQuestions.Num() < LowestNumberOfRequiredQuestions ||
-		RemainingBadQuestions.Num() < LowestNumberOfRequiredQuestions ||
+	if (RemainingGeneralQuestions.Num() < CurrentCharacterData->NumberOfGeneralQuestionsPerSet ||
+		RemainingOptimalQuestions.Num() + RemainingBadQuestions.Num() < CurrentCharacterData->NumberOfSpecificQuestionsPerSet ||
 		QuestionsDone >= CurrentCharacterData->NumberOfQuestionSets)
 	{
 		//No more questions.
@@ -147,13 +161,11 @@ void UDialogueComponent::Select(const int32 Option)
 		if (SelectedQuestions.Num() <= Option) return;
 		OnUIClear();
 		const FQuestionTableRow* PickedQuestion = SelectedQuestions[Option];
-		if (PickedQuestion->Value < 0)
-		{
-			SuspicionMeter -= PickedQuestion->Value;
-		}
+		SuspicionMeter -= PickedQuestion->Value;
 		if (SuspicionMeter > CurrentCharacterData->BustValue)
 		{
 			InterviewState = EInterviewState::Bust;
+			SuspicionMeter = 0;
 			OnDisplayBust(CurrentCharacterData->BustText);
 		}
 		else
@@ -184,29 +196,33 @@ void UDialogueComponent::Select(const int32 Option)
 
 TArray<FQuestionTableRow*> UDialogueComponent::SelectAndRemoveQuestions()
 {
-	const uint8 NumberOfQuestionsFromEachType = FMath::Floor(CurrentCharacterData->NumberOfQuestionsInASet / 3);
-	const uint8 NumberOfQuestionsFromAnyType = CurrentCharacterData->NumberOfQuestionsInASet % 3;
 	TArray<FQuestionTableRow*> OrderedResult;
-	for (uint8 i = 0; i < NumberOfQuestionsFromEachType; i++)
+	
+	for (uint8 i = 0; i < CurrentCharacterData->NumberOfGeneralQuestionsPerSet; i++)
 	{
-		AddRandomQuestionToArrayAndRemove(RemainingNeutralQuestions, OrderedResult);
-		AddRandomQuestionToArrayAndRemove(RemainingOptimalQuestions, OrderedResult);
-		AddRandomQuestionToArrayAndRemove(RemainingBadQuestions, OrderedResult);
+		AddRandomQuestionToArrayAndRemove(RemainingGeneralQuestions, OrderedResult);
 	}
-	for (uint8 i = 0; i < NumberOfQuestionsFromAnyType; i++)
+	for (uint8 i = 0; i < CurrentCharacterData->NumberOfSpecificQuestionsPerSet; i++)
 	{
-		const uint8 TypeRoll = FMath::RandRange(0, 2);
-		if (TypeRoll == 0)
-		{
-			AddRandomQuestionToArrayAndRemove(RemainingNeutralQuestions, OrderedResult);
-		}
-		else if (TypeRoll == 1)
+		if (RemainingBadQuestions.Num() <= 0)
 		{
 			AddRandomQuestionToArrayAndRemove(RemainingOptimalQuestions, OrderedResult);
 		}
-		else
+		else if (RemainingOptimalQuestions.Num() <= 0)
 		{
 			AddRandomQuestionToArrayAndRemove(RemainingBadQuestions, OrderedResult);
+		}
+		else
+		{
+			const bool TypeRoll = FMath::RandBool();
+			if (TypeRoll)
+			{
+				AddRandomQuestionToArrayAndRemove(RemainingBadQuestions, OrderedResult);
+			}
+			else
+			{
+				AddRandomQuestionToArrayAndRemove(RemainingOptimalQuestions, OrderedResult);
+			}
 		}
 	}
 	TArray<FQuestionTableRow*> ShuffledResult;
