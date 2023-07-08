@@ -26,17 +26,24 @@ void UDialogueComponent::BeginPlay()
 	SuspicionMeter = 0;
 }
 
+void UDialogueComponent::Print(FString Text)
+{
+	if (GEngine)
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red,
+		                                 Text);
+}
+
 void UDialogueComponent::StartInterview()
 {
+	if (InterviewState != EInterviewState::None) return;
+	
 	RemainingGeneralQuestions.Empty();
 	RemainingOptimalQuestions.Empty();
 	RemainingBadQuestions.Empty();
 
 	if (CharacterData.Num() <= 0)
 	{
-		if (GEngine)
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red,
-			                                 TEXT("Tried to start interview with no interviews available!"));
+		Print("Interview started with no character data!");
 		return;
 	}
 
@@ -124,6 +131,7 @@ void UDialogueComponent::Continue()
 		InterviewState = EInterviewState::Guess;
 		NumberOfInterviewsCompleted++;
 		TArray<UDialogueCharacterData*> PossibleCharacters = CharacterData;
+		PossibleCharacters.Remove(CurrentCharacterData);
 		ShownCharacterGuessOptions.Empty();
 		for (uint8 i = 0; i < NumberOfCharacterGuessOptions - 1; i++)
 		{
@@ -162,7 +170,8 @@ void UDialogueComponent::Select(const int32 Option)
 		OnUIClear();
 		const FQuestionTableRow* PickedQuestion = SelectedQuestions[Option];
 		SuspicionMeter -= PickedQuestion->Value;
-		if (SuspicionMeter > CurrentCharacterData->BustValue)
+		SuspicionMeter = FMath::Clamp(SuspicionMeter, static_cast<float>(0), static_cast<float>(999999));
+		if (SuspicionMeter >= CurrentCharacterData->BustValue)
 		{
 			InterviewState = EInterviewState::Bust;
 			SuspicionMeter = 0;
@@ -226,7 +235,8 @@ TArray<FQuestionTableRow*> UDialogueComponent::SelectAndRemoveQuestions()
 		}
 	}
 	TArray<FQuestionTableRow*> ShuffledResult;
-	for (uint8 i = 0; i < OrderedResult.Num(); i++)
+	const uint8 OrderedResultLength = OrderedResult.Num();
+	for (uint8 i = 0; i < OrderedResultLength; i++)
 	{
 		FQuestionTableRow* Selected = OrderedResult[FMath::RandRange(0, OrderedResult.Num() - 1)];
 		ShuffledResult.Add(Selected);
@@ -240,5 +250,5 @@ void UDialogueComponent::AddRandomQuestionToArrayAndRemove(TArray<uint8>& Questi
 {
 	const uint8 IndexSelected = QuestionIndexArray[FMath::RandRange(0, QuestionIndexArray.Num() - 1)];
 	ArrayToAddTo.Add(CurrentQuestionTable[IndexSelected]);
-	CurrentQuestionTable.RemoveAt(IndexSelected);
+	QuestionIndexArray.Remove(IndexSelected);
 }

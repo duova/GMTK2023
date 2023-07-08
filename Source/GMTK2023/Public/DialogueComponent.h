@@ -73,6 +73,8 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	static void Print(FString Text);
+
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly)
 	TArray<UDialogueCharacterData*> CharacterData;
 
