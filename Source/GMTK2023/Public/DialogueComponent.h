@@ -40,10 +40,7 @@ public:
 	FText StartingText;
 
 	UPROPERTY(EditAnywhere)
-	uint8 NumberOfOptimalQuestionsGiven;
-
-	UPROPERTY(EditAnywhere)
-	uint8 NumberOfNormalQuestionsGiven;
+	uint8 NumberOfQuestionsInASet;
 
 	UPROPERTY(EditAnywhere)
 	uint8 NumberOfQuestionSets;
@@ -132,6 +129,8 @@ private:
 
 	TArray<FQuestionTableRow*> SelectAndRemoveQuestions();
 
+	void AddRandomQuestionToArrayAndRemove(TArray<uint8>& QuestionIndexArray, TArray<FQuestionTableRow*>& ArrayToAddTo);
+
 	UPROPERTY()
 	TArray<UDialogueCharacterData*> RemainingCharacters;
 
@@ -146,7 +145,10 @@ private:
 	TArray<uint8> RemainingOptimalQuestions;
 	
 	UPROPERTY()
-	TArray<uint8> RemainingNormalQuestions;
+	TArray<uint8> RemainingNeutralQuestions;
+
+	UPROPERTY()
+	TArray<uint8> RemainingBadQuestions;
 
 	UPROPERTY()
 	float SuspicionMeter;

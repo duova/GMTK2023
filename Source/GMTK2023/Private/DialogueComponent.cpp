@@ -27,8 +27,9 @@ void UDialogueComponent::BeginPlay()
 
 void UDialogueComponent::StartInterview()
 {
-	RemainingNormalQuestions.Empty();
+	RemainingNeutralQuestions.Empty();
 	RemainingOptimalQuestions.Empty();
+	RemainingBadQuestions.Empty();
 
 	if (RemainingCharacters.Num() <= 0)
 	{
@@ -46,13 +47,17 @@ void UDialogueComponent::StartInterview()
 
 	for (uint8 i = 0; i < CurrentQuestionTable.Num(); i++)
 	{
-		if (CurrentQuestionTable[i]->Value < 1)
+		if (CurrentQuestionTable[i]->Value == 0)
 		{
-			RemainingNormalQuestions.Add(i);
+			RemainingNeutralQuestions.Add(i);
+		}
+		else if (CurrentQuestionTable[i]->Value > 0)
+		{
+			RemainingOptimalQuestions.Add(i);
 		}
 		else
 		{
-			RemainingOptimalQuestions.Add(i);
+			RemainingBadQuestions.Add(i);
 		}
 	}
 
@@ -94,9 +99,11 @@ void UDialogueComponent::Continue()
 		InterviewState = EInterviewState::None;
 	}
 	if (!(InterviewState == EInterviewState::Start || InterviewState == EInterviewState::Answer)) return;
-	if (RemainingNormalQuestions.Num() < CurrentCharacterData->NumberOfNormalQuestionsGiven ||
-		RemainingOptimalQuestions.Num() < CurrentCharacterData->NumberOfOptimalQuestionsGiven || QuestionsDone >=
-		CurrentCharacterData->NumberOfQuestionSets)
+	const uint8 LowestNumberOfRequiredQuestions = FMath::Floor(CurrentCharacterData->NumberOfQuestionsInASet / 3) + 1;
+	if (RemainingNeutralQuestions.Num() < LowestNumberOfRequiredQuestions ||
+		RemainingOptimalQuestions.Num() < LowestNumberOfRequiredQuestions ||
+		RemainingBadQuestions.Num() < LowestNumberOfRequiredQuestions ||
+		QuestionsDone >= CurrentCharacterData->NumberOfQuestionSets)
 	{
 		//No more questions.
 		OnUIClear();
@@ -140,9 +147,9 @@ void UDialogueComponent::Select(const int32 Option)
 		if (SelectedQuestions.Num() <= Option) return;
 		OnUIClear();
 		const FQuestionTableRow* PickedQuestion = SelectedQuestions[Option];
-		if (PickedQuestion->Value < 0.5)
+		if (PickedQuestion->Value < 0)
 		{
-			SuspicionMeter += 0.5 - PickedQuestion->Value;
+			SuspicionMeter -= PickedQuestion->Value;
 		}
 		if (SuspicionMeter > CurrentCharacterData->BustValue)
 		{
@@ -177,19 +184,45 @@ void UDialogueComponent::Select(const int32 Option)
 
 TArray<FQuestionTableRow*> UDialogueComponent::SelectAndRemoveQuestions()
 {
-	TArray<FQuestionTableRow*> Result;
-	uint8 IndexSelected;
-	for (uint8 i = 0; i < CurrentCharacterData->NumberOfNormalQuestionsGiven; i++)
+	const uint8 NumberOfQuestionsFromEachType = FMath::Floor(CurrentCharacterData->NumberOfQuestionsInASet / 3);
+	const uint8 NumberOfQuestionsFromAnyType = CurrentCharacterData->NumberOfQuestionsInASet % 3;
+	TArray<FQuestionTableRow*> OrderedResult;
+	for (uint8 i = 0; i < NumberOfQuestionsFromEachType; i++)
 	{
-		IndexSelected = RemainingNormalQuestions[FMath::RandRange(0, RemainingNormalQuestions.Num() - 1)];
-		Result.Add(CurrentQuestionTable[IndexSelected]);
-		CurrentQuestionTable.RemoveAt(IndexSelected);
+		AddRandomQuestionToArrayAndRemove(RemainingNeutralQuestions, OrderedResult);
+		AddRandomQuestionToArrayAndRemove(RemainingOptimalQuestions, OrderedResult);
+		AddRandomQuestionToArrayAndRemove(RemainingBadQuestions, OrderedResult);
 	}
-	for (uint8 i = 0; i < CurrentCharacterData->NumberOfOptimalQuestionsGiven; i++)
+	for (uint8 i = 0; i < NumberOfQuestionsFromAnyType; i++)
 	{
-		IndexSelected = RemainingOptimalQuestions[FMath::RandRange(0, RemainingOptimalQuestions.Num() - 1)];
-		Result.Add(CurrentQuestionTable[IndexSelected]);
-		CurrentQuestionTable.RemoveAt(IndexSelected);
+		const uint8 TypeRoll = FMath::RandRange(0, 2);
+		if (TypeRoll == 0)
+		{
+			AddRandomQuestionToArrayAndRemove(RemainingNeutralQuestions, OrderedResult);
+		}
+		else if (TypeRoll == 1)
+		{
+			AddRandomQuestionToArrayAndRemove(RemainingOptimalQuestions, OrderedResult);
+		}
+		else
+		{
+			AddRandomQuestionToArrayAndRemove(RemainingBadQuestions, OrderedResult);
+		}
 	}
-	return Result;
+	TArray<FQuestionTableRow*> ShuffledResult;
+	for (uint8 i = 0; i < OrderedResult.Num(); i++)
+	{
+		FQuestionTableRow* Selected = OrderedResult[FMath::RandRange(0, OrderedResult.Num() - 1)];
+		ShuffledResult.Add(Selected);
+		OrderedResult.Remove(Selected);
+	}
+	return ShuffledResult;
+}
+
+void UDialogueComponent::AddRandomQuestionToArrayAndRemove(TArray<uint8>& QuestionIndexArray,
+	TArray<FQuestionTableRow*>& ArrayToAddTo)
+{
+	const uint8 IndexSelected = QuestionIndexArray[FMath::RandRange(0, QuestionIndexArray.Num() - 1)];
+	ArrayToAddTo.Add(CurrentQuestionTable[IndexSelected]);
+	CurrentQuestionTable.RemoveAt(IndexSelected);
 }
