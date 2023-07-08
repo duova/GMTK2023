@@ -10,6 +10,6 @@ public class GMTK2023Target : TargetRules
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
 
-		ExtraModuleNames.AddRange( new string[] { "GMTK2023", "InteractableSystem" } );
+		ExtraModuleNames.AddRange( new string[] { "GMTK2023" } );
 	}
 }

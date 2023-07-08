@@ -10,6 +10,6 @@ public class GMTK2023EditorTarget : TargetRules
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
 
-		ExtraModuleNames.AddRange( new string[] { "GMTK2023", "InteractableSystem" } );
+		ExtraModuleNames.AddRange( new string[] { "GMTK2023" } );
 	}
 }
