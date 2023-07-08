@@ -31,7 +31,7 @@ public:
 	UDialogueCharacterData();
 
 	UPROPERTY(EditAnywhere)
-	FText Title;
+	FText Career;
 	
 	UPROPERTY(EditAnywhere)
 	UDataTable* QuestionTable;
