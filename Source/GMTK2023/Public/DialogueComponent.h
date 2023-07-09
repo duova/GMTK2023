@@ -79,16 +79,16 @@ protected:
 	TArray<UDialogueCharacterData*> CharacterData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	uint8 NumberOfCharacterGuessOptions;
+	int32 NumberOfCharacterGuessOptions;
 
 	UPROPERTY(BlueprintReadOnly)
-	uint8 NumberOfCorrectGuesses;
+	int32 NumberOfCorrectGuesses;
 
 	UPROPERTY(BlueprintReadOnly)
-	uint8 NumberOfInterviewsCompleted;
+	int32 NumberOfInterviewsCompleted;
 
 	UPROPERTY(BlueprintReadOnly)
-	uint8 NumberOfInterviewsStarted;
+	int32 NumberOfInterviewsStarted;
 
 	UFUNCTION(BlueprintCallable)
 	void StartInterview();

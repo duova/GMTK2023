@@ -77,6 +77,7 @@ void UDialogueComponent::StartInterview()
 	QuestionsDone = 0;
 	NumberOfInterviewsStarted++;
 	SelectedQuestions.Empty();
+	LastPlayedCharacter = CurrentCharacterData;
 	InterviewState = EInterviewState::Start;
 
 	OnInterviewStart(CurrentCharacterData->StartingText);
